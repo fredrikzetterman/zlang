@@ -1,0 +1,104 @@
+//Primitive types are simply declared with i for signed, u for unsigned, f for floating point
+//Integers can be any bit size, floats have pre-defined sizes(32/64/16), like so:
+
+i8 foo
+u12 bar
+f32 baz
+u13 lol // valid
+f13 lol2 // invalid
+
+//Assignment is done with colon, like so:
+
+i8 foo : 5
+f32 value : func()
+
+//There's no boolean type, use u1 instead. 'true' is always 1 and 'false' is always 0. Conditional statements however check for non-zero values.
+
+u1 test : false
+i16 test2 : 123
+
+if test {
+  // will not run
+}
+elif test2 {
+  // will run
+}
+else {
+  // will not run
+}
+
+//New names for built-in types can be created in two ways, using 'alias' or 'typedef':
+
+alias i8 my_alias
+typedef i8 my_typedef
+
+//The difference between 'alias' and 'typedef' is that 'alias' just creates a new name for the type, whereas 'typedef' creates a new type:
+
+my_alias lol_alias : -2
+my_typedef lol_typedef : -2
+i8 lol_i8 : -3
+lol_alias : lol_i8 // OK
+lol_typedef : lol_i8 // ERROR: Cannot assign 'i8' type to a 'my_typedef' type
+
+//Since we now have the means to rename stuff, we can "implement" a bool type if we wish:
+
+alias u1 bool
+
+//String literals are UTF8 per default, convertible to the u8 type:
+
+u8[] text : "This is lé tëxt"
+
+//Custom object are created by using the 'struct' keyword:
+
+struct my_struct {
+  u8 first
+  u8 second
+  u1 flag_one
+  u1 flag_two
+}
+
+//We can also define functions like so:
+
+// Two args, one return value
+fn foo( u8 in, u8 in2 : u8 ) {
+  // Do stuff
+  return in * in2
+}
+
+// No args, no return value
+fn bar() {
+  // Do stuff
+}
+
+// Three return values only
+fn baz(: u8, u8, u8 ) {
+  return 5,6,7
+}
+
+// Anonymous function
+fn( : u8 ) {
+  return 5
+}
+
+//structs have no member functions, but can simulate the behaviour through UFCS:
+
+struct my_struct {
+  u8 member
+}
+
+fn my_struct_foo( my_struct in : u8 ) {
+  u8 first : in.member // Using '.' to access member 
+  u8 second : .member  // Using '.' with preceeding whitespace will look up 'member' in the first argument
+  return first * second
+}
+
+my_struct s : 5 // TODO: How to init?
+// Explicit call
+u8 retval : my_struct_foo( s )
+// Implicit call, pass 's' as first argument (exact same code as above)
+u8 retval2 : s.foo()
+
+//TODO: Add swizzle support for all structs
+//TODO: Different pointer/array/allocator types
+//TODO: When writing debug code, eliminate the need to wrap things in ugly #ifdef/#endif, just write regular code instead and tag it some place
+//TODO: Named return values
