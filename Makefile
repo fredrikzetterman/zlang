@@ -1,9 +1,14 @@
-CC=clang
-CXX=clang++
-CFLAGS=-std=c11 -Weverything -Werror -Wno-unused-macros -Wno-reserved-id-macro -Wno-padded
-CXXFLAGS=-std=c++17 -Weverything -Werror -Wno-unused-macros -Wno-reserved-id-macro -Wno-padded -Wno-c++98-compat
+LLVM_BIN_PATH := /usr/bin
 
-z: lex.yy.o z.tab.o ast.o
+LLVM_CXXFLAGS := `$(LLVM_BIN_PATH)/llvm-config --cxxflags`
+LLVM_LDFLAGS := `$(LLVM_BIN_PATH)/llvm-config --ldflags --libs --system-libs`
+
+CC:=clang
+CXX:=clang++
+CFLAGS:=-std=c11 -Weverything -Werror -Wno-unused-macros -Wno-reserved-id-macro -Wno-padded
+CXXFLAGS:=-std=c++17 -Weverything -Werror -Wno-unused-macros -Wno-reserved-id-macro -Wno-padded -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-unknown-warning-option $(LLVM_CXXFLAGS)
+
+z: lex.yy.o z.tab.o ast.o ir.o
 	$(CXX) -o z $^
 
 z.tab.h: z.y

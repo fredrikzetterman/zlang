@@ -1,3 +1,10 @@
+# Lexer/parser
+lex.yy.c
+z.output
+z.tab.c
+z.tab.h
+z
+
 # Prerequisites
 *.d
 

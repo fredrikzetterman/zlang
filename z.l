@@ -5,11 +5,13 @@ E			([Ee][+-]?{D}+)
 %{
 #include <stdnoreturn.h>
 #include "z.tab.h"
+extern YYSTYPE yylval;
 void match( const char* t );
 noreturn void no_match(void);
 
 struct YYLTYPE;
 void yyerror( struct YYLTYPE* locp, const char* msg );
+
 
 #define MATCH( x ) match( #x ); return x; 
 
@@ -48,16 +50,16 @@ void yyerror( struct YYLTYPE* locp, const char* msg );
 "{" |
 "}" { char tmp[2] = { yytext[0], 0 }; match( tmp ); return yytext[0]; }
 
-i([1-9]|[1-9]{D}|[1-9]{D}{D}) { MATCH( INT ) }
-u([1-9]|[1-9]{D}|[1-9]{D}{D}) { MATCH( UINT ) }
-f(16|32|64)                   { MATCH( FLOAT ) }
-[_a-zA-Z][_a-zA-Z0-9]*        { MATCH( IDENTIFIER ) }
+i([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval._bits = atoi( yytext + 1 ); MATCH( INT ) }
+u([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval._bits = atoi( yytext + 1 ); MATCH( UINT ) }
+f(16|32|64)                   { yylval._bits = atoi( yytext + 1 ); MATCH( FLOAT ) }
+[_a-zA-Z][_a-zA-Z0-9]*        { yylval._str = strndup( yytext, yyleng ); MATCH( IDENTIFIER ) }
 
-0[xX]{H}+		                  { MATCH( CONSTANT ) }
-0[0-7]*		                    { MATCH( CONSTANT ) }
-[1-9]{D}*		                  { MATCH( CONSTANT ) }
-{D}+{E}?		                  { MATCH( CONSTANT ) }
-{D}+"."{D}+{E}?	              { MATCH( CONSTANT ) }
+0[xX]{H}+		                  { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
+0[0-7]*		                    { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
+[1-9]{D}*		                  { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
+{D}+{E}?		                  { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
+{D}+"."{D}+{E}?	              { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
 
 [ \x0a]                       {}
 .                             { no_match(); }
