@@ -68,23 +68,13 @@ new_func( struct ast_context* ctx, const char* name, struct ast* parameters, str
 }
 
 struct ast*
-new_symbol( struct ast_context* ctx, const char* name, struct ast* type_and_modifiers ) {
+new_symbol( struct ast_context* ctx, const char* name, struct primitive_type pt ) {
   struct ast* ret = get_ast( ctx, AST_SYMBOL );
   symbol& s = ret->_symbol;
   s._name = name;
-  s._type_and_modifiers = type_and_modifiers;
+  s._sym_type = pt._sym_type;
+  s._primitive_type = pt;
 
-  type_and_modifiers->_parent = ret;
-
-  return ret;
-}
-
-struct ast*
-new_symbol_type( struct ast_context* ctx, enum sym_type st, unsigned int bits ) {
-  struct ast* ret = get_ast( ctx, AST_SYMBOL_TYPE );
-  symbol_type& t = ret->_symbol_type;
-  t._sym_type = st;
-  t._bits = bits;
   return ret;
 }
 
@@ -125,64 +115,66 @@ get_ast_start( struct ast_context* ctx ) {
 }
 
 void
-walk_ast( struct ast* a, int depth, int (*visit)( struct ast* a, int depth ) ) {
-  if ( a == nullptr ) {
+walk_ast( struct walk_ast_data wad ) {
+  if ( wad._curr == nullptr ) {
     return;
   }
-  assert( depth == 0 || a->_parent );
-  while ( a ) {
-    int recurr = visit( a, depth );
+  assert( wad._depth == 0 || wad._curr->_parent );
+  while ( wad._curr ) {
+    int recurr = wad._visit( wad );
     if ( recurr ) {
-      switch ( a->_type ) {
+      walk_ast_data other = wad;
+      other._depth += 1;
+      switch ( wad._curr->_type ) {
       case AST_BINARY_OP:
-        walk_ast( a->_binary._l, depth + 1, visit );
-        walk_ast( a->_binary._r, depth + 1, visit );
+        other._curr = wad._curr->_binary._l;
+        walk_ast( other );
+        other._curr = wad._curr->_binary._r;
+        walk_ast( other );
         break;
       case AST_ASSIGNMENT:
-        walk_ast( a->_assignment._expr, depth + 1, visit );
+        other._curr = wad._curr->_assignment._expr;
+        walk_ast( other );
         break;
       case AST_FUNCTION:
-        walk_ast( a->_function._parameters, depth + 1, visit );
-        walk_ast( a->_function._return_parameters, depth + 1, visit );
-        walk_ast( a->_function._body, depth + 1, visit );
+        other._curr = wad._curr->_function._parameters;
+        walk_ast( other );
+        other._curr = wad._curr->_function._return_parameters;
+        walk_ast( other );
+        other._curr = wad._curr->_function._body;
+        walk_ast( other );
         break;
       case AST_SYMBOL:
-        walk_ast( a->_symbol._type_and_modifiers, depth + 1, visit );
-        break;
       case AST_REF:
       case AST_CONSTANT:
-      case AST_SYMBOL_TYPE:
         break;
       }
     }
-    a = a->_next;
+    wad._curr = wad._curr->_next;
   }
 }
 
 int
-ast_printer( struct ast* a, int depth ) {
-  depth *= 2;
-  switch ( a->_type ) {
+ast_printer( struct walk_ast_data wad ) {
+  int depth = wad._depth * 2;
+  switch ( wad._curr->_type ) {
   case AST_BINARY_OP:
-    fprintf( stderr, "%*sAST_BINARY_OP: %c\n", depth, "", a->_binary._op );
+    fprintf( stderr, "%*sAST_BINARY_OP: %c\n", depth, "", wad._curr->_binary._op );
     break;
   case AST_ASSIGNMENT:
-    fprintf( stderr, "%*sAST_ASSIGNMENT: %s\n", depth, "", a->_assignment._name );
+    fprintf( stderr, "%*sAST_ASSIGNMENT: %s\n", depth, "", wad._curr->_assignment._name );
     break;
   case AST_FUNCTION:
-    fprintf( stderr, "%*sAST_FUNCTION: %s\n", depth, "", a->_function._name );
+    fprintf( stderr, "%*sAST_FUNCTION: %s\n", depth, "", wad._curr->_function._name );
     break;
   case AST_SYMBOL:
-    fprintf( stderr, "%*sAST_SYMBOL: %s\n", depth, "", a->_symbol._name );
+    fprintf( stderr, "%*sAST_SYMBOL: %s\n", depth, "", wad._curr->_symbol._name );
     break;
   case AST_REF:
-    fprintf( stderr, "%*sAST_REF: %s\n", depth, "", a->_ref._name );
+    fprintf( stderr, "%*sAST_REF: %s\n", depth, "", wad._curr->_ref._name );
     break;
   case AST_CONSTANT:
-    fprintf( stderr, "%*sAST_CONSTANT: %s\n", depth, "", a->_constant._value );
-    break;
-  case AST_SYMBOL_TYPE:
-    fprintf( stderr, "%*sAST_SYMBOL_TYPE: %i\n", depth, "", a->_symbol_type._bits );
+    fprintf( stderr, "%*sAST_CONSTANT: %s\n", depth, "", wad._curr->_constant._value );
     break;
   }
   return 1;

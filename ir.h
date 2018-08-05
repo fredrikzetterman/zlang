@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 struct ir_context;
-struct ir_context* new_ir_context(void);
+struct ir_context* new_ir_context( const char* name );
 void delete_ir_context( struct ir_context* ctx );
 
 struct ast;

@@ -12,7 +12,6 @@ enum ast_node_type {
   AST_CONSTANT,
   AST_FUNCTION,
   AST_SYMBOL,
-  AST_SYMBOL_TYPE, // TODO: Shouldn't be a node in AST, but a temp struct
   AST_ASSIGNMENT,
 };
 
@@ -20,8 +19,7 @@ enum sym_type {
   SYM_INT,
   SYM_UINT,
   SYM_FLOAT,
-  SYM_STRUCT,
-  SYM_UNION
+  SYM_UDT,
 };
 
 enum sym_type_modifiers {
@@ -49,14 +47,18 @@ struct function {
   struct ast* _body;
 };
 
-struct symbol {
-  const char* _name;
-  struct ast* _type_and_modifiers;
+struct primitive_type {
+  enum sym_type _sym_type;
+  unsigned int  _bits;
 };
 
-struct symbol_type {
+struct symbol {
+  const char*   _name;
   enum sym_type _sym_type;
-  unsigned int _bits;
+  union {
+    struct ast*           _udt;
+    struct primitive_type _primitive_type;
+  };
 };
 
 struct assignment {
@@ -74,7 +76,6 @@ struct ast {
     struct constant     _constant;
     struct function     _function;
     struct symbol       _symbol;
-    struct symbol_type  _symbol_type;
     struct assignment   _assignment;
   };
 };
@@ -97,13 +98,19 @@ struct ast* new_binary_op( struct ast_context* ctx, int binary_op, struct ast* l
 struct ast* new_ref( struct ast_context* ctx, const char* sym );
 struct ast* new_constant( struct ast_context* ctx, const char* c );
 struct ast* new_func( struct ast_context* ctx, const char* name, struct ast* parameters, struct ast* return_parameters, struct ast* body );
-struct ast* new_symbol( struct ast_context* ctx, const char* name, struct ast* type_and_modifiers );
-struct ast* new_symbol_type( struct ast_context* ctx, enum sym_type st, unsigned int bits );
+struct ast* new_symbol( struct ast_context* ctx, const char* name, struct primitive_type pt );
 struct ast* new_assignment( struct ast_context* ctx, const char* name, struct ast* expr );
 
-void walk_ast( struct ast* a, int depth, int (*visit)( struct ast* a, int depth ) );
+struct walk_ast_data {
+  void*       _user_data;
+  struct ast* _curr;
+  int         _depth;
+  int (*_visit)( struct walk_ast_data wad );
+};
 
-int ast_printer( struct ast* a, int depth );
+void walk_ast( struct walk_ast_data wad );
+
+int ast_printer( struct walk_ast_data wad );
 
 #ifdef __cplusplus
 }

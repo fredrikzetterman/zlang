@@ -14,9 +14,9 @@ static struct ast_context* ctx = NULL;
 
 %union {
   char*         _str;
-  unsigned int  _bits;
-  unsigned int  _flags;
   struct ast*   _ast;
+  unsigned int  _bits;
+  struct primitive_type _primitive_type;
 }
 
 %{
@@ -34,8 +34,9 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 %token UMINUS ASSIGN
 
 %type<_str> IDENTIFIER CONSTANT
+%type<_primitive_type> type_specifier
 %type<_bits> INT UINT FLOAT
-%type<_ast> expression function_definition parameter_list compound_statement parameter type_declaration block_item_list block_item statement expression_statement type_specifier assignment_expression external_declaration translation_unit
+%type<_ast> expression function_definition parameter_list compound_statement parameter type_declaration block_item_list block_item statement expression_statement assignment_expression external_declaration translation_unit
 
 
 %locations
@@ -57,9 +58,9 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 %%
 
 type_specifier
-  : INT   { $$ = new_symbol_type( ctx, SYM_INT, $1 ); }
-  | UINT  { $$ = new_symbol_type( ctx, SYM_UINT, $1 ); }
-  | FLOAT { $$ = new_symbol_type( ctx, SYM_FLOAT, $1 ); }
+  : INT   { struct primitive_type tmp = { SYM_INT, $1 }; $$ = tmp; }
+  | UINT  { struct primitive_type tmp = { SYM_UINT, $1 }; $$ = tmp; }
+  | FLOAT { struct primitive_type tmp = { SYM_FLOAT, $1 }; $$ = tmp; }
   ;
 
 /*
@@ -74,25 +75,12 @@ type_qualifier_list
 */
 
 type_declaration
-  : type_specifier { $$ = $1; }
+  : type_specifier { $$ = new_symbol( ctx, NULL, $1 ); }
   //| type_qualifier_list type_specifier
   ;
 
-/*
-declaration_specifiers
-  : type_declaration
-  ;
-*/
-
-/*
-declaration
-  : declaration_specifiers IDENTIFIER EOL
-  ;
-*/
-
 parameter
-  : type_declaration IDENTIFIER { $$ = new_symbol( ctx, $2, $1 ); }
-  ;
+  : type_declaration IDENTIFIER { $1->_symbol._name = $2; $$ = $1; }
 
 expression
   : expression '+' expression       { $$ = new_binary_op( ctx, '+', $1, $3 ); }
@@ -167,6 +155,7 @@ int main( int argc, const char* const* argv ) {
 
   yylex_init(&sc);
 
+  const char* module_name = "stdin";
   FILE* f = NULL;
   if ( argc > 1 ) {
     f = fopen( argv[1], "r" );
@@ -175,6 +164,8 @@ int main( int argc, const char* const* argv ) {
       exit(-1);
     }
     yyset_in( f, sc );
+    // TODO: Sanitize argv[1]
+    module_name = argv[1];
   }
   else {
     yyset_in( stdin, sc );
@@ -183,9 +174,16 @@ int main( int argc, const char* const* argv ) {
   ctx = new_ast_context();
   yyparse( sc );
 
-  walk_ast( get_ast_start( ctx ), 0, ast_printer );
+  struct walk_ast_data wad;
+  memset( &wad, 0, sizeof(wad) );
+  wad._curr = get_ast_start( ctx );
+  wad._visit = ast_printer;
 
-  struct ir_context* ir_ctx = new_ir_context();
+  walk_ast( wad );
+
+  fprintf( stderr, "===\nIR:\n===\n" );
+
+  struct ir_context* ir_ctx = new_ir_context( module_name );
   convert_ast_to_ir( ir_ctx, get_ast_start( ctx ) );
 
   delete_ir_context( ir_ctx );

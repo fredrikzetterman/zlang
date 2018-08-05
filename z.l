@@ -3,8 +3,9 @@ L			[a-zA-Z_]
 H			[a-fA-F0-9]
 E			([Ee][+-]?{D}+)
 %{
-#include <stdnoreturn.h>
+#include "ast.h"
 #include "z.tab.h"
+#include <stdnoreturn.h>
 void match( const char* t, const char* text );
 noreturn void no_match( const char* text );
 void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
@@ -55,7 +56,7 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 
 i([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval->_bits = atoi( yytext + 1 ); MATCH( INT ) }
 u([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval->_bits = atoi( yytext + 1 ); MATCH( UINT ) }
-f(16|32|64)                   { yylval->_bits = atoi( yytext + 1 ); MATCH( FLOAT ) }
+f(16|32|64|128)               { yylval->_bits = atoi( yytext + 1 ); MATCH( FLOAT ) }
 [_a-zA-Z][_a-zA-Z0-9]*        { CLONE_STRING; MATCH( IDENTIFIER ) }
 
 0[xX]{H}+		                  { CLONE_STRING; MATCH( CONSTANT ) }
