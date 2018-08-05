@@ -36,10 +36,6 @@ struct binary_op {
 
 struct ref {
   const char*   _name;
-  struct ret*   _next;
-  const char*   _filename;
-  unsigned int  _line_no;
-  unsigned int  _column_no;
 };
 
 struct constant {
@@ -70,6 +66,8 @@ struct assignment {
 
 struct ast {
   enum ast_node_type _type;
+  struct ast*        _next;
+  struct ast*        _parent;
   union {
     struct binary_op    _binary;
     struct ref          _ref;
@@ -81,11 +79,19 @@ struct ast {
   };
 };
 
+static inline void append_ast( struct ast* first, struct ast* second ) {
+  while ( first->_next ) {
+    first = first->_next;
+  }
+  first->_next = second;
+}
 
 struct ast_context;
 
 struct ast_context* new_ast_context(void);
-void free_ast_context( struct ast_context* ast );
+void delete_ast_context( struct ast_context* ast );
+void set_ast_start( struct ast_context* ctx, struct ast* a );
+struct ast* get_ast_start( struct ast_context* ctx );
 
 struct ast* new_binary_op( struct ast_context* ctx, int binary_op, struct ast* l, struct ast* r );
 struct ast* new_ref( struct ast_context* ctx, const char* sym );
@@ -94,6 +100,10 @@ struct ast* new_func( struct ast_context* ctx, const char* name, struct ast* par
 struct ast* new_symbol( struct ast_context* ctx, const char* name, struct ast* type_and_modifiers );
 struct ast* new_symbol_type( struct ast_context* ctx, enum sym_type st, unsigned int bits );
 struct ast* new_assignment( struct ast_context* ctx, const char* name, struct ast* expr );
+
+void walk_ast( struct ast* a, int depth, int (*visit)( struct ast* a, int depth ) );
+
+int ast_printer( struct ast* a, int depth );
 
 #ifdef __cplusplus
 }

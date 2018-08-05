@@ -37,9 +37,7 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 "fn"                          { MATCH( FN ) }
 "if"                          { MATCH( IF ) }
 "else"                        { MATCH( ELSE ) }
-"typedef"                     { MATCH( TYPEDEF ) }
-"struct"                      { MATCH( STRUCT ) }
-"union"                       { MATCH( UNION ) }
+"type"                        { MATCH( TYPE ) }
 "const"                       { MATCH( CONST ) }
 
 "+" |

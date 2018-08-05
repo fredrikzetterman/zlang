@@ -26,17 +26,16 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 
 %token INT UINT FLOAT
 %token IDENTIFIER CONSTANT STRING_LITERAL
-%token ALIAS TYPEDEF
+%token ALIAS TYPE
 %token EOL
 %token FN
-%token STRUCT UNION
 %token CONST
 %token IF ELSE
 %token UMINUS ASSIGN
 
 %type<_str> IDENTIFIER CONSTANT
 %type<_bits> INT UINT FLOAT
-%type<_ast> expression function_definition parameter_list compound_statement parameter type_declaration block_item_list block_item statement expression_statement type_specifier assignment_expression
+%type<_ast> expression function_definition parameter_list compound_statement parameter type_declaration block_item_list block_item statement expression_statement type_specifier assignment_expression external_declaration translation_unit
 
 
 %locations
@@ -118,7 +117,7 @@ expression_statement
 
 parameter_list
   : parameter { $$ = $1; }
-  | parameter_list ',' parameter { $$ = $3; }
+  | parameter_list ',' parameter { append_ast( $1, $3 ); $$ = $1; }
   ;
 
 statement
@@ -149,18 +148,19 @@ function_definition
   ;
 
 external_declaration
-  : function_definition
+  : function_definition { $$ = $1; }
 	//| declaration
 	;
 
 translation_unit
-  : external_declaration
-  | translation_unit external_declaration
+  : external_declaration                  { $$ = $1; set_ast_start( ctx, $1 ); }
+  | translation_unit external_declaration { append_ast( $1, $2 ); $$ = $1; set_ast_start( ctx, $1 ); }
   ;
 
 %%
 #pragma clang diagnostic pop
 #include <stdio.h>
+#include "ir.h"
 
 int main( int argc, const char* const* argv ) {
   yyscan_t sc;
@@ -182,7 +182,14 @@ int main( int argc, const char* const* argv ) {
 
   ctx = new_ast_context();
   yyparse( sc );
-  free_ast_context( ctx );
+
+  walk_ast( get_ast_start( ctx ), 0, ast_printer );
+
+  struct ir_context* ir_ctx = new_ir_context();
+  convert_ast_to_ir( ir_ctx, get_ast_start( ctx ) );
+
+  delete_ir_context( ir_ctx );
+  delete_ast_context( ctx );
   ctx = NULL;
 
   if ( f ) {

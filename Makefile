@@ -7,9 +7,10 @@ CC:=clang
 CXX:=clang++
 CFLAGS:=-std=c11 -Weverything -Werror -Wno-unused-macros -Wno-reserved-id-macro -Wno-padded -g
 CXXFLAGS:=-std=c++17 -Weverything -Werror -Wno-unused-macros -Wno-reserved-id-macro -Wno-padded -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-unknown-warning-option -g $(LLVM_CXXFLAGS)
+LDFLAGS:=$(LLVM_LDFLAGS)
 
 z: z.lex.o z.tab.o ast.o ir.o
-	$(CXX) -o z $^
+	$(CXX) -o z $^ $(LDFLAGS)
 
 z.tab.h: z.y
 	bison --debug --verbose -d z.y

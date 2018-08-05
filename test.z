@@ -5,3 +5,7 @@ fn add( i32 a, i32 b : i32 r ) {
 }
 
 
+fn sub( i32 a, i32 b : i32 r ) {
+  r = a - b
+}
+
