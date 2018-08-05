@@ -5,15 +5,18 @@ E			([Ee][+-]?{D}+)
 %{
 #include <stdnoreturn.h>
 #include "z.tab.h"
-extern YYSTYPE yylval;
-void match( const char* t );
-noreturn void no_match(void);
+void match( const char* t, const char* text );
+noreturn void no_match( const char* text );
+void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 
-struct YYLTYPE;
-void yyerror( struct YYLTYPE* locp, const char* msg );
+#define CLONE_STRING \
+  const char* text = yytext; \
+  int len = yyleng; \
+  yylval->_str = (char*)malloc( len + 1 ); \
+  memcpy( yylval->_str, text, len ); \
+  yylval->_str[len] = 0; 
 
-
-#define MATCH( x ) match( #x ); return x; 
+#define MATCH( x ) match( #x, yytext ); return x; 
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunreachable-code"
@@ -24,7 +27,9 @@ void yyerror( struct YYLTYPE* locp, const char* msg );
 #pragma clang diagnostic ignored "-Wconversion"
 #pragma clang diagnostic ignored "-Wsign-conversion"
 %}
-%option noyywrap nodefault yylineno
+%option noyywrap nodefault yylineno reentrant bison-bridge bison-locations
+%option header-file="z.lex.h"
+%option outfile="z.lex.c"
 
 %%
 
@@ -48,21 +53,21 @@ void yyerror( struct YYLTYPE* locp, const char* msg );
 "(" |
 ")" |
 "{" |
-"}" { char tmp[2] = { yytext[0], 0 }; match( tmp ); return yytext[0]; }
+"}" { char tmp[2] = { yytext[0], 0 }; match( tmp, yytext ); return yytext[0]; }
 
-i([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval._bits = atoi( yytext + 1 ); MATCH( INT ) }
-u([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval._bits = atoi( yytext + 1 ); MATCH( UINT ) }
-f(16|32|64)                   { yylval._bits = atoi( yytext + 1 ); MATCH( FLOAT ) }
-[_a-zA-Z][_a-zA-Z0-9]*        { yylval._str = strndup( yytext, yyleng ); MATCH( IDENTIFIER ) }
+i([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval->_bits = atoi( yytext + 1 ); MATCH( INT ) }
+u([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval->_bits = atoi( yytext + 1 ); MATCH( UINT ) }
+f(16|32|64)                   { yylval->_bits = atoi( yytext + 1 ); MATCH( FLOAT ) }
+[_a-zA-Z][_a-zA-Z0-9]*        { CLONE_STRING; MATCH( IDENTIFIER ) }
 
-0[xX]{H}+		                  { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
-0[0-7]*		                    { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
-[1-9]{D}*		                  { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
-{D}+{E}?		                  { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
-{D}+"."{D}+{E}?	              { yylval._str = strndup( yytext, yyleng ); MATCH( CONSTANT ) }
+0[xX]{H}+		                  { CLONE_STRING; MATCH( CONSTANT ) }
+0[0-7]*		                    { CLONE_STRING; MATCH( CONSTANT ) }
+[1-9]{D}*		                  { CLONE_STRING; MATCH( CONSTANT ) }
+{D}+{E}?		                  { CLONE_STRING; MATCH( CONSTANT ) }
+{D}+"."{D}+{E}?	              { CLONE_STRING; MATCH( CONSTANT ) }
 
 [ \x0a]                       {}
-.                             { no_match(); }
+.                             { no_match( yytext ); }
 
 %%
 
@@ -70,17 +75,18 @@ f(16|32|64)                   { yylval._bits = atoi( yytext + 1 ); MATCH( FLOAT 
 
 #pragma clang diagnostic pop
 
-void match( const char* t ) {
-  fprintf( stdout, "Matched '%s' as '%s'\n", yytext, t );
+void match( const char* t, const char* text ) {
+  fprintf( stdout, "Matched '%s' as '%s'\n", text, t );
 }
 
-noreturn void no_match(void) {
-  fprintf( stderr, "ERROR: No matching token for '%c'(0x%02x)\n", yytext[0], yytext[0] );
+noreturn void no_match( const char* text ) {
+  fprintf( stderr, "ERROR: No matching token for '%c'(0x%02x)\n", text[0], text[0] );
   exit(-1);
 }
 
-void yyerror( struct YYLTYPE* locp, const char* msg ) {
+void yyerror( struct YYLTYPE* locp, void* sc, const char* msg ) {
   (void)locp;
+  (void)sc;
   fprintf( stderr, "ERROR: %s\n", msg );
 }
 

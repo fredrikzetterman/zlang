@@ -5,11 +5,6 @@
 
 static struct ast_context* ctx = NULL;
 
-struct YYLTYPE;
-union YYSTYPE;
-int yylex( union YYSTYPE* lvalp, struct YYLTYPE *locp);
-void yyerror( struct YYLTYPE* locp, const char* msg );
-
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
 #pragma clang diagnostic ignored "-Wsign-conversion"
@@ -18,11 +13,16 @@ void yyerror( struct YYLTYPE* locp, const char* msg );
 %}
 
 %union {
-  const char*   _str;
+  char*         _str;
   unsigned int  _bits;
   unsigned int  _flags;
   struct ast*   _ast;
 }
+
+%{
+void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
+#include "z.lex.h"
+%}
 
 %token INT UINT FLOAT
 %token IDENTIFIER CONSTANT STRING_LITERAL
@@ -43,6 +43,9 @@ void yyerror( struct YYLTYPE* locp, const char* msg );
 %define api.pure full
 %define parse.error verbose
 
+%lex-param   { void* sc }
+%parse-param { void* sc }
+
 %expect 0
 
 %start translation_unit
@@ -55,9 +58,9 @@ void yyerror( struct YYLTYPE* locp, const char* msg );
 %%
 
 type_specifier
-  : INT { $$ = new_type( ctx, SYM_INT, $1 ); }
-  | UINT { $$ = new_type( ctx, SYM_UINT, $1 ); }
-  | FLOAT { $$ = new_type( ctx, SYM_FLOAT, $1 ); }
+  : INT   { $$ = new_symbol_type( ctx, SYM_INT, $1 ); }
+  | UINT  { $$ = new_symbol_type( ctx, SYM_UINT, $1 ); }
+  | FLOAT { $$ = new_symbol_type( ctx, SYM_FLOAT, $1 ); }
   ;
 
 /*
@@ -160,11 +163,33 @@ translation_unit
 #include <stdio.h>
 
 int main( int argc, const char* const* argv ) {
-  (void)argc;
-  (void)argv;
+  yyscan_t sc;
+
+  yylex_init(&sc);
+
+  FILE* f = NULL;
+  if ( argc > 1 ) {
+    f = fopen( argv[1], "r" );
+    if ( !f ) {
+      fprintf( stderr, "Unable to open '%s' for reading", argv[1] );
+      exit(-1);
+    }
+    yyset_in( f, sc );
+  }
+  else {
+    yyset_in( stdin, sc );
+  }
+
   ctx = new_ast_context();
-  yyparse();
+  yyparse( sc );
   free_ast_context( ctx );
   ctx = NULL;
+
+  if ( f ) {
+    fclose( f );
+    f = NULL;
+  }
+
+  yylex_destroy(sc);
 }
 

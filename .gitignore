@@ -1,6 +1,8 @@
 # Lexer/parser
-lex.yy.c
+z.lex.c
+z.lex.h
 z.output
+z.stackdump
 z.tab.c
 z.tab.h
 z

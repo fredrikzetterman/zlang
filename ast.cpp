@@ -18,7 +18,6 @@ get_ast( struct ast_context* ctx, ast_node_type ant ) {
   ctx->_ast.back().push_back( ast() );
   ast& ret = ctx->_ast.back().back();
   ret._type = ant;
-  ret._next = nullptr;
   return &ret;
 }
 
@@ -62,10 +61,31 @@ new_func( struct ast_context* ctx, const char* name, struct ast* parameters, str
 
 struct ast*
 new_symbol( struct ast_context* ctx, const char* name, struct ast* type_and_modifiers ) {
-  struct ast* ret = get_ast( ctx, AST_FUNCTION );
+  struct ast* ret = get_ast( ctx, AST_SYMBOL );
   symbol& s = ret->_symbol;
   s._name = name;
-  ret->_next = type_and_modifiers;
+  s._type_and_modifiers = type_and_modifiers;
+  fprintf( stderr, "AST symbol %s\n", name );
+  return ret;
+}
+
+struct ast*
+new_symbol_type( struct ast_context* ctx, enum sym_type st, unsigned int bits ) {
+  struct ast* ret = get_ast( ctx, AST_SYMBOL_TYPE );
+  symbol_type& t = ret->_symbol_type;
+  t._sym_type = st;
+  t._bits = bits;
+  fprintf( stderr, "AST symbol type %i\n", bits );
+  return ret;
+}
+
+struct ast*
+new_assignment( struct ast_context* ctx, const char* name, struct ast* expr ) {
+  struct ast* ret = get_ast( ctx, AST_ASSIGNMENT );
+  assignment& a = ret->_assignment;
+  a._name = name;
+  a._expr = expr;
+  fprintf( stderr, "AST assignment %s\n", name );
   return ret;
 }
 
@@ -76,6 +96,7 @@ new_ast_context(void) {
   ret->_ast.back().reserve( AST_INCREMENT );
   return ret;
 }
+
 
 void
 free_ast_context( struct ast_context* ast ) {

@@ -8,11 +8,12 @@ extern "C" {
 struct ast;
 enum ast_node_type {
   AST_BINARY_OP,
-  AST_SYMBOL,
   AST_REF,
   AST_CONSTANT,
   AST_FUNCTION,
-  AST_DECLARATION,
+  AST_SYMBOL,
+  AST_SYMBOL_TYPE, // TODO: Shouldn't be a node in AST, but a temp struct
+  AST_ASSIGNMENT,
 };
 
 enum sym_type {
@@ -31,13 +32,6 @@ struct binary_op {
   int         _op;
   struct ast* _l;
   struct ast* _r;
-};
-
-struct symbol {
-  enum sym_type _type;
-  unsigned int  _modifiers;
-  const char*   _name;
-  struct ref*   _ref_list;
 };
 
 struct ref {
@@ -59,15 +53,31 @@ struct function {
   struct ast* _body;
 };
 
+struct symbol {
+  const char* _name;
+  struct ast* _type_and_modifiers;
+};
+
+struct symbol_type {
+  enum sym_type _sym_type;
+  unsigned int _bits;
+};
+
+struct assignment {
+  const char* _name;
+  struct ast* _expr;
+};
+
 struct ast {
   enum ast_node_type _type;
-  struct ast*        _next;
   union {
-    struct binary_op  _binary;
-    struct symbol     _symbol;
-    struct ref        _ref;
-    struct constant   _constant;
-    struct function   _function;
+    struct binary_op    _binary;
+    struct ref          _ref;
+    struct constant     _constant;
+    struct function     _function;
+    struct symbol       _symbol;
+    struct symbol_type  _symbol_type;
+    struct assignment   _assignment;
   };
 };
 
@@ -82,7 +92,7 @@ struct ast* new_ref( struct ast_context* ctx, const char* sym );
 struct ast* new_constant( struct ast_context* ctx, const char* c );
 struct ast* new_func( struct ast_context* ctx, const char* name, struct ast* parameters, struct ast* return_parameters, struct ast* body );
 struct ast* new_symbol( struct ast_context* ctx, const char* name, struct ast* type_and_modifiers );
-struct ast* new_type( struct ast_context* ctx, enum sym_type st, unsigned int bits );
+struct ast* new_symbol_type( struct ast_context* ctx, enum sym_type st, unsigned int bits );
 struct ast* new_assignment( struct ast_context* ctx, const char* name, struct ast* expr );
 
 #ifdef __cplusplus
