@@ -46,11 +46,11 @@ new_ref( struct ast_context* ctx, const char* name ) {
 }
 
 struct ast*
-new_constant( struct ast_context* ctx, const char* c ) {
+new_constant( struct ast_context* ctx, const char* c, enum ast_node_type type ) {
   if ( ctx->_debug_print ) {
     fprintf( stderr, "new_constant '%s'\n", c );
   }
-  struct ast* ret = get_ast( ctx, AST_CONSTANT );
+  struct ast* ret = get_ast( ctx, type );
   ret->_constant._value = c;
   return ret;
 }
@@ -85,6 +85,15 @@ new_symbol( struct ast_context* ctx, const char* name, struct primitive_type pt 
   s._sym_type = pt._sym_type;
   s._primitive_type = pt;
 
+  return ret;
+}
+
+struct ast*
+new_scope( struct ast_context* ctx, enum ast_node_type type ) {
+  if ( ctx->_debug_print ) {
+    fprintf( stderr, "new_scope %s\n", type == AST_SCOPE_BEGIN ? "begin" : "end" );
+  }
+  struct ast* ret = get_ast( ctx, type );
   return ret;
 }
 
@@ -162,8 +171,17 @@ print_node( struct walk_ast_data wad ) {
   case AST_REF:
     fprintf( stderr, "%*sAST_REF: %s\n", depth, "", wad._curr->_ref._name );
     break;
-  case AST_CONSTANT:
-    fprintf( stderr, "%*sAST_CONSTANT: %s\n", depth, "", wad._curr->_constant._value );
+  case AST_CONSTANT_INT:
+    fprintf( stderr, "%*sAST_CONSTANT_INT: %s\n", depth, "", wad._curr->_constant._value );
+    break;
+  case AST_CONSTANT_FLOAT:
+    fprintf( stderr, "%*sAST_CONSTANT_FLOAT: %s\n", depth, "", wad._curr->_constant._value );
+    break;
+  case AST_SCOPE_BEGIN:
+    fprintf( stderr, "%*sAST_SCOPE_BEGIN:\n", depth, "" );
+    break;
+  case AST_SCOPE_END:
+    fprintf( stderr, "%*sAST_SCOPE_END:\n", depth, "" );
     break;
   }
 }
@@ -199,7 +217,10 @@ print_ast( struct walk_ast_data wad ) {
       break;
     case AST_SYMBOL:
     case AST_REF:
-    case AST_CONSTANT:
+    case AST_CONSTANT_INT:
+    case AST_CONSTANT_FLOAT:
+    case AST_SCOPE_BEGIN:
+    case AST_SCOPE_END:
       break;
     }
     wad._curr = wad._curr->_next;

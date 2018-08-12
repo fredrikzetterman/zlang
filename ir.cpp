@@ -11,11 +11,17 @@
 #include <llvm/IR/Verifier.h>
 #include "ast.h"
 #include "ir.h"
+#include <unordered_map>
 
 using namespace llvm;
 
 struct ir_data {
   Value*  _val;
+};
+
+struct symbol_table {
+  // TODO: Change to better hashmap/stringref
+  std::unordered_map<std::string, Value*> _symbols;
 };
 
 struct ir_context {
@@ -39,7 +45,28 @@ struct ir_context {
   struct ast_context*   _ast_ctx;
   struct ast*           _ast_begin;
   std::vector<ir_data>  _ir_data;
+
+  std::vector<symbol_table> _symbols;
 };
+
+static void
+add_symbol( struct ir_context* ctx, struct symbol& s, Value* v ) {
+  ASSERT( !ctx->_symbols.empty() );
+  ASSERT( ctx->_symbols.back()._symbols.find( s._name ) == ctx->_symbols.back()._symbols.end() );
+  ctx->_symbols.back()._symbols[s._name] = v;
+}
+
+static Value*
+lookup_symbol( struct ir_context* ctx, const char* name ) {
+  for ( int i = static_cast<int>( ctx->_symbols.size() ) - 1; i >= 0; --i ) {
+    auto it = ctx->_symbols[static_cast<size_t>(i)]._symbols.find( name );
+    if ( it != ctx->_symbols[static_cast<size_t>(i)]._symbols.end() ) {
+      return it->second;
+    }
+  }
+  ASSERTX( false, "Couldn't find symbol '%s'", name );
+  return nullptr;
+}
 
 static Type*
 get_llvm_type( struct ir_context* ctx, struct ast* a ) {
@@ -87,7 +114,11 @@ struct ir_visit_data {
 
 static ir_data&
 get_ir_data( struct ir_context* ctx, struct ir_visit_data& ivd ) {
-  return ctx->_ir_data[static_cast<size_t>( ivd._curr - ctx->_ast_begin )];
+  ASSERT( ivd._curr );
+  ASSERT( ivd._curr >= ctx->_ast_begin );
+  size_t index = static_cast<size_t>( ivd._curr - ctx->_ast_begin );
+  ASSERT( index < ctx->_ir_data.size() );
+  return ctx->_ir_data[index];
 }
 
 static struct primitive_type
@@ -108,8 +139,10 @@ check_valid( ir_visit_data& l, ir_visit_data& r ) {
   return ret;
 }
 
+
+
 static void
-ir_visitor( struct ir_visit_data& ivd ) {
+ir_visitor( struct ir_visit_data ivd ) {
   ir_context* ctx = ivd._ctx;
   while ( ivd._curr ) {
     ASSERT( ivd._curr );
@@ -199,7 +232,18 @@ ir_visitor( struct ir_visit_data& ivd ) {
       }
       break;
     case AST_ASSIGNMENT:
-      //fprintf( stderr, "%*sAST_ASSIGNMENT: %s\n", depth, "", ivd._curr->_assignment._name );
+      {
+        ir_visit_data expr = ivd;
+        expr._curr = ivd._curr->_assignment._expr;
+        ir_visitor( expr );
+        check_valid( ivd, expr );
+
+        ir_data& exprd = get_ir_data( ctx, expr );
+
+        ASSERT( exprd._val );
+
+        //id._val = ctx->_ir.CreateStore( exprd._val, ai );
+      }
       break;
     case AST_FUNCTION:
       {
@@ -223,17 +267,69 @@ ir_visitor( struct ir_visit_data& ivd ) {
         FunctionType* ft = FunctionType::get( ret_type, actual_params, false );
         Function* f = Function::Create( ft, Function::InternalLinkage, ivd._curr->_function._name, &ctx->_module );
 
+        curr_p = ivd._curr->_function._parameters;
+
+        ctx->_symbols.push_back( symbol_table() );
+
+        for ( auto& Arg : f->args() ) {
+          if ( curr_p->_symbol._name ) {
+            Arg.setName( curr_p->_symbol._name );
+            add_symbol( ctx, curr_p->_symbol, &Arg );
+          }
+          curr_p = curr_p->_next;
+        }
+
         id._val = f;
+
+        ir_visit_data body = ivd;
+        body._curr = ivd._curr->_function._body;
+        ir_visitor( body );
+
+        verifyFunction( *f );
+
+        ctx->_symbols.pop_back();
       }
       break;
     case AST_SYMBOL:
       //fprintf( stderr, "%*sAST_SYMBOL: %s\n", depth, "", ivd._curr->_symbol._name );
       break;
     case AST_REF:
-      //fprintf( stderr, "%*sAST_REF: %s\n", depth, "", ivd._curr->_ref._name );
+      id._val = lookup_symbol( ctx, ivd._curr->_ref._name );
+      ASSERT( id._val );
       break;
-    case AST_CONSTANT:
-      //fprintf( stderr, "%*sAST_CONSTANT: %s\n", depth, "", ivd._curr->_constant._value );
+    case AST_CONSTANT_INT:
+      {
+        ivd._curr->_result._sym_type = SYM_CONSTANT;
+        unsigned char radix = 10;
+        const char* str = ivd._curr->_constant._value;
+        if ( strlen( str ) >= 2 ) {
+          if ( str[1] == 'x' || str[1] == 'X' ) {
+            radix = 16;
+            str += 2;
+          }
+          else if ( str[1] == 'o' || str[1] == 'O' ) {
+            radix = 16;
+            str += 2;
+          }
+          else if ( str[1] == 'b' || str[1] == 'B' ) {
+            radix = 2;
+            str += 2;
+          }
+        }
+        id._val = ConstantInt::get( ctx->_llvm_ctx, APInt( 128, str, radix ) );
+      }
+      break;
+    case AST_CONSTANT_FLOAT:
+      {
+        ivd._curr->_result._sym_type = SYM_CONSTANT;
+        id._val = ConstantFP::get( ctx->_llvm_ctx, APFloat( APFloat::IEEEquad(), ivd._curr->_constant._value ) );
+      }
+      break;
+    case AST_SCOPE_BEGIN:
+      ctx->_symbols.push_back( symbol_table() );
+      break;
+    case AST_SCOPE_END:
+      ctx->_symbols.pop_back();
       break;
     }
 

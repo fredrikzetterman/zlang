@@ -59,11 +59,12 @@ u([1-9]|[1-9]{D}|[1-9]{D}{D}) { yylval->_bits = atoi( yytext + 1 ); MATCH( UINT 
 f(16|32|64|128)               { yylval->_bits = atoi( yytext + 1 ); MATCH( FLOAT ) }
 [_a-zA-Z][_a-zA-Z0-9]*        { CLONE_STRING; MATCH( IDENTIFIER ) }
 
-0[xX]{H}+		                  { CLONE_STRING; MATCH( CONSTANT ) }
-0[0-7]*		                    { CLONE_STRING; MATCH( CONSTANT ) }
-[1-9]{D}*		                  { CLONE_STRING; MATCH( CONSTANT ) }
-{D}+{E}?		                  { CLONE_STRING; MATCH( CONSTANT ) }
-{D}+"."{D}+{E}?	              { CLONE_STRING; MATCH( CONSTANT ) }
+0[xX]{H}+		                  { CLONE_STRING; MATCH( CONSTANT_INT ) }
+0[oO][0-7]+                   { CLONE_STRING; MATCH( CONSTANT_INT ) }
+0[bB][0-1]+                   { CLONE_STRING; MATCH( CONSTANT_INT ) }
+{D}+f?		                    { CLONE_STRING; if ( yytext[yyleng-1] == 'f' ) { MATCH( CONSTANT_FLOAT ) } else { MATCH( CONSTANT_INT ); } }
+{D}+{E}?f?		                { CLONE_STRING; if ( yytext[yyleng-1] == 'f' ) { MATCH( CONSTANT_FLOAT ) } else { MATCH( CONSTANT_INT ); } }
+{D}+"."{D}+{E}?f              { CLONE_STRING; MATCH( CONSTANT_FLOAT ) }
 [\x0a]                        { MATCH( EOL ) }
 
 [ ]                           {}

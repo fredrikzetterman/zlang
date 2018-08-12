@@ -9,10 +9,13 @@ struct ast;
 enum ast_node_type {
   AST_BINARY_OP,
   AST_REF,
-  AST_CONSTANT,
+  AST_CONSTANT_INT,
+  AST_CONSTANT_FLOAT,
   AST_FUNCTION,
   AST_SYMBOL,
   AST_ASSIGNMENT,
+  AST_SCOPE_BEGIN,
+  AST_SCOPE_END,
 };
 
 enum sym_type {
@@ -108,10 +111,11 @@ unsigned int get_ast_count( struct ast_context* ctx, struct ast** begin );
 
 struct ast* new_binary_op( struct ast_context* ctx, int binary_op, struct ast* l, struct ast* r );
 struct ast* new_ref( struct ast_context* ctx, const char* sym );
-struct ast* new_constant( struct ast_context* ctx, const char* c );
+struct ast* new_constant( struct ast_context* ctx, const char* c, enum ast_node_type type );
 struct ast* new_func( struct ast_context* ctx, const char* name, struct ast* parameters, struct ast* return_parameters, struct ast* body );
 struct ast* new_symbol( struct ast_context* ctx, const char* name, struct primitive_type pt );
 struct ast* new_assignment( struct ast_context* ctx, const char* name, struct ast* expr );
+struct ast* new_scope( struct ast_context* ctx, enum ast_node_type type );
 
 void set_symbol_name( struct ast_context* ctx, struct ast* node, const char* name );
 

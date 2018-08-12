@@ -25,7 +25,7 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 %}
 
 %token INT UINT FLOAT
-%token IDENTIFIER CONSTANT STRING_LITERAL
+%token IDENTIFIER CONSTANT_INT CONSTANT_FLOAT CONSTANT_STRING
 %token ALIAS TYPE
 %token EOL
 %token FN
@@ -33,7 +33,7 @@ void yyerror( struct YYLTYPE* locp, void* sc, const char* msg );
 %token IF ELSE
 %token UMINUS ASSIGN
 
-%type<_str> IDENTIFIER CONSTANT
+%type<_str> IDENTIFIER CONSTANT_INT CONSTANT_FLOAT
 %type<_primitive_type> type_specifier
 %type<_bits> INT UINT FLOAT
 %type<_ast> expression function_definition parameter_list compound_statement parameter type_declaration block_item_list block_item statement expression_statement assignment_expression external_declaration translation_unit ignored_statement EOL
@@ -90,7 +90,8 @@ expression
   | '(' expression ')'              { $$ = $2; }
   //| '-' expression %prec UMINUS
   | IDENTIFIER                      { $$ = new_ref( ctx, $1 ); }
-  | CONSTANT                        { $$ = new_constant( ctx, $1 ); }
+  | CONSTANT_INT                    { $$ = new_constant( ctx, $1, AST_CONSTANT_INT ); }
+  | CONSTANT_FLOAT                  { $$ = new_constant( ctx, $1, AST_CONSTANT_FLOAT ); }
   ;
 
 assignment_expression
@@ -127,8 +128,8 @@ block_item_list
   ;
 
 compound_statement
-  : '{' '}' { $$ = NULL; }
-  | '{' block_item_list '}' { $$ = $2; }
+  : '{' '}' { $$ = append_ast( new_scope( ctx, AST_SCOPE_BEGIN ), new_scope( ctx, AST_SCOPE_END ) ); }
+  | '{' block_item_list '}' { $$ = append_ast( new_scope( ctx, AST_SCOPE_BEGIN ), append_ast( $2, new_scope( ctx, AST_SCOPE_END ) ) ); }
   ;
 
 function_definition
@@ -164,6 +165,7 @@ vassert_handler( const char* test, const char* file, int line, const char* fmt, 
   else {
     fprintf( stderr, "[%s:%i] ASSERT( %s )\n", file, line, test );
   }
+  fflush( stderr );
   return 1;
 }
 
