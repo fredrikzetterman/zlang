@@ -16,10 +16,12 @@ enum ast_node_type {
 };
 
 enum sym_type {
+  SYM_UNDEFINED,
   SYM_INT,
   SYM_UINT,
   SYM_FLOAT,
   SYM_UDT,
+  SYM_CONSTANT,
 };
 
 enum sym_type_modifiers {
@@ -40,6 +42,11 @@ struct constant {
   const char*   _value;
 };
 
+struct primitive_type {
+  enum sym_type _sym_type;
+  unsigned int  _bits;
+};
+
 struct function {
   const char* _name;
   struct ast* _parameters;
@@ -47,10 +54,6 @@ struct function {
   struct ast* _body;
 };
 
-struct primitive_type {
-  enum sym_type _sym_type;
-  unsigned int  _bits;
-};
 
 struct symbol {
   const char*   _name;
@@ -70,6 +73,7 @@ struct ast {
   enum ast_node_type _type;
   struct ast*        _next;
   struct ast*        _parent;
+  struct primitive_type _result;
   union {
     struct binary_op    _binary;
     struct ref          _ref;
@@ -80,11 +84,18 @@ struct ast {
   };
 };
 
-static inline void append_ast( struct ast* first, struct ast* second ) {
+static inline struct ast* append_ast( struct ast* first, struct ast* second ) {
+  if ( !first ) {
+    return second;
+  }
+  if ( !second ) {
+    return first;
+  }
   while ( first->_next ) {
     first = first->_next;
   }
   first->_next = second;
+  return first;
 }
 
 struct ast_context;
@@ -93,6 +104,7 @@ struct ast_context* new_ast_context(void);
 void delete_ast_context( struct ast_context* ast );
 void set_ast_start( struct ast_context* ctx, struct ast* a );
 struct ast* get_ast_start( struct ast_context* ctx );
+unsigned int get_ast_count( struct ast_context* ctx, struct ast** begin );
 
 struct ast* new_binary_op( struct ast_context* ctx, int binary_op, struct ast* l, struct ast* r );
 struct ast* new_ref( struct ast_context* ctx, const char* sym );
@@ -101,16 +113,14 @@ struct ast* new_func( struct ast_context* ctx, const char* name, struct ast* par
 struct ast* new_symbol( struct ast_context* ctx, const char* name, struct primitive_type pt );
 struct ast* new_assignment( struct ast_context* ctx, const char* name, struct ast* expr );
 
+void set_symbol_name( struct ast_context* ctx, struct ast* node, const char* name );
+
 struct walk_ast_data {
   void*       _user_data;
   struct ast* _curr;
   int         _depth;
-  int (*_visit)( struct walk_ast_data wad );
 };
-
-void walk_ast( struct walk_ast_data wad );
-
-int ast_printer( struct walk_ast_data wad );
+void print_ast( struct walk_ast_data wad );
 
 #ifdef __cplusplus
 }

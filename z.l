@@ -64,8 +64,9 @@ f(16|32|64|128)               { yylval->_bits = atoi( yytext + 1 ); MATCH( FLOAT
 [1-9]{D}*		                  { CLONE_STRING; MATCH( CONSTANT ) }
 {D}+{E}?		                  { CLONE_STRING; MATCH( CONSTANT ) }
 {D}+"."{D}+{E}?	              { CLONE_STRING; MATCH( CONSTANT ) }
+[\x0a]                        { MATCH( EOL ) }
 
-[ \x0a]                       {}
+[ ]                           {}
 .                             { no_match( yytext ); }
 
 %%
@@ -75,6 +76,16 @@ f(16|32|64|128)               { yylval->_bits = atoi( yytext + 1 ); MATCH( FLOAT
 #pragma clang diagnostic pop
 
 void match( const char* t, const char* text ) {
+  if ( text[0] < 32 ) {
+    switch ( text[0] ) {
+    case '\n':
+      text = "\\n";
+      break;
+    default:
+      ASSERT( !"Implement" );
+      break;
+    }
+  }
   fprintf( stdout, "Matched '%s' as '%s'\n", text, t );
 }
 

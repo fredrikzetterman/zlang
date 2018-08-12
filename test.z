@@ -1,11 +1,12 @@
 
 
-fn add( i32 a, i32 b : i32 r ) {
-  r = a + b
+fn add i32 a, i32 b : i32 r  {
+  r = a + ( b + 5 )
 }
 
 
-fn sub( i32 a, i32 b : i32 r ) {
-  r = a - b
+fn sub i32 a, i32 b : i32 r {
+  r = ( 5 - a ) - b
 }
+
 
